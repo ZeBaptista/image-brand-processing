@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 import logging
@@ -104,7 +104,7 @@ def apply_logo(image_path: str, background_image_path: str):
         raise HTTPException(status_code=500, detail="Error applying the logo")
 
 @app.post("/upload-campaign/")
-async def upload_campaign_logo(file: UploadFile = File(...)):
+async def upload_campaign_logo(file: UploadFile = File(...), background_name: str = Form(...)):
     try:
         os.makedirs('app/campaigns', exist_ok=True)  # Create 'campaigns' directory if it does not exist
         campaign_image_path = os.path.join('app', 'campaigns', file.filename)
@@ -112,10 +112,13 @@ async def upload_campaign_logo(file: UploadFile = File(...)):
             campaign_image.write(await file.read())
 
         # Apply campaign image to the background image
-        background_image_path = "app/images/midia_background_street_02.png"  # Use the correct path to your background image
+        background_image_path = os.path.join('app', 'images', background_name)  # Use the correct path to your background image
+        if not os.path.exists(background_image_path):
+            raise HTTPException(status_code=404, detail="Background image not found")
+
         processed_path = apply_logo(campaign_image_path, background_image_path)
 
-        logger.info(f"File {file.filename} uploaded and processed")
+        logger.info(f"File {file.filename} uploaded and processed with background {background_name}")
         return {"filename": file.filename, "processed_path": processed_path}
 
     except Exception as e:
