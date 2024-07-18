@@ -1,9 +1,9 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 import logging
 import os
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageOps
 from google.cloud import vision
 from dotenv import load_dotenv
 import numpy as np
@@ -103,6 +103,7 @@ def apply_logo(image_path: str, background_image_path: str):
         logger.error(f"Error in apply_logo: {e}")
         raise HTTPException(status_code=500, detail="Error applying the logo")
 
+
 @app.post("/upload-campaign/")
 async def upload_campaign_logo(file: UploadFile = File(...), background_name: str = Form(...)):
     try:
@@ -125,6 +126,7 @@ async def upload_campaign_logo(file: UploadFile = File(...), background_name: st
         logger.error(f"Error in upload_campaign_logo: {e}")
         raise HTTPException(status_code=500, detail="Error uploading the campaign logo")
 
+
 @app.get("/processed/{filename}")
 async def get_processed_image(filename: str):
     try:
@@ -135,6 +137,16 @@ async def get_processed_image(filename: str):
     except Exception as e:
         logger.error(f"Error in get_processed_image: {e}")
         raise HTTPException(status_code=500, detail="Error retrieving the processed image")
+
+@app.get("/backgrounds/")
+async def list_backgrounds():
+    try:
+        backgrounds_path = 'app/images'
+        backgrounds = [f for f in os.listdir(backgrounds_path) if os.path.isfile(os.path.join(backgrounds_path, f))]
+        return JSONResponse(content={"backgrounds": backgrounds})
+    except Exception as e:
+        logger.error(f"Error in list_backgrounds: {e}")
+        raise HTTPException(status_code=500, detail="Error listing backgrounds")
 
 if __name__ == "__main__":
     import uvicorn
