@@ -26,7 +26,9 @@ origins = [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
     'https://localhost:3000',
-    'https://127.0.0.1:3000'
+    'https://127.0.0.1:3000',
+    'https://testedevisibilidade.be180.com.br',
+    'http://testedevisibilidade.be180.com.br'
 ]
 
 # Adding CORS middleware
@@ -91,8 +93,9 @@ def apply_logo(image_path: str, background_image_path: str):
         # Paste the resized upload image onto the background image at the position of the largest white rectangle
         background_image.paste(resized_upload_image, (y, x))
 
-        # Save the processed image
-        processed_path = os.path.join('app', 'processed', os.path.basename(image_path))
+        # Save the processed image with the new naming convention
+        background_name = os.path.splitext(os.path.basename(background_image_path))[0]
+        processed_path = os.path.join('app', 'processed', f"processed_{background_name}.jpg")
         os.makedirs(os.path.dirname(processed_path), exist_ok=True)
         background_image.save(processed_path)
 
@@ -102,7 +105,6 @@ def apply_logo(image_path: str, background_image_path: str):
     except Exception as e:
         logger.error(f"Error in apply_logo: {e}")
         raise HTTPException(status_code=500, detail="Error applying the logo")
-
 
 @app.post("/upload-campaign/")
 async def upload_campaign_logo(file: UploadFile = File(...), background_name: str = Form(...)):
