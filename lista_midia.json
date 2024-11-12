@@ -1,0 +1,470 @@
+[
+  {
+    "base_name": "midia_mub02",
+    "local": "outdoor",
+    "tipo": "f\u00edsica",
+    "description": "Mobili\u00e1rio Urbano (MUB)",
+    "images": [
+      {
+        "day_image": null,
+        "night_image": "midia_mub02_noite_3M.png",
+        "distance": 3
+      },
+      {
+        "day_image": null,
+        "night_image": "midia_mub02_noite_15M.png",
+        "distance": 15
+      },
+      {
+        "day_image": null,
+        "night_image": "midia_mub02_noite_30M.png",
+        "distance": 30
+      }
+    ]
+  },
+  {
+    "base_name": "midia_mub01",
+    "local": "outdoor",
+    "tipo": "f\u00edsica",
+    "description": "Mobili\u00e1rio Urbano (MUB)",
+    "images": [
+      {
+        "day_image": "midia_mub01_3M.png",
+        "night_image": "midia_mub01_noite_3M.png",
+        "distance": 3
+      },
+      {
+        "day_image": "midia_mub01_15M.png",
+        "night_image": "midia_mub01_noite_15M.png",
+        "distance": 15
+      },
+      {
+        "day_image": "midia_mub01_30M.png",
+        "night_image": "midia_midia_mub01_noite_30M.png",
+        "distance": 30
+      }
+    ]
+  },
+  {
+    "base_name": "midia_mub03",
+    "local": "outdoor",
+    "tipo": "f\u00edsica",
+    "description": "Mobili\u00e1rio Urbano (MUB)",
+    "images": [
+      {
+        "day_image": "midia_mub03_3M.png",
+        "night_image": null,
+        "distance": 3
+      },
+      {
+        "day_image": "midia_mub03_15M.png",
+        "night_image": null,
+        "distance": 15
+      },
+      {
+        "day_image": "midia_mub03_30M.png",
+        "night_image": null,
+        "distance": 30
+      }
+    ]
+  },
+  {
+    "base_name": "midia_mub04",
+    "local": "outdoor",
+    "tipo": "f\u00edsica",
+    "description": "Mobili\u00e1rio Urbano (MUB)",
+    "images": [
+      {
+        "day_image": "midia_mub04_3M.png",
+        "night_image": null,
+        "distance": 3
+      },
+      {
+        "day_image": "midia_mub04_15M.png",
+        "night_image": null,
+        "distance": 15
+      },
+      {
+        "day_image": "midia_mub04_30M.png",
+        "night_image": null,
+        "distance": 30
+      }
+    ]
+  },
+  {
+    "base_name": "midia_mub05",
+    "local": "outdoor",
+    "tipo": "f\u00edsica",
+    "description": "Mobili\u00e1rio Urbano (MUB)",
+    "images": [
+      {
+        "day_image": "midia_mub05_3M.png",
+        "night_image": null,
+        "distance": 3
+      },
+      {
+        "day_image": "midia_mub05_15M.png",
+        "night_image": null,
+        "distance": 15
+      },
+      {
+        "day_image": "midia_mub05_30M.png",
+        "night_image": null,
+        "distance": 30
+      }
+    ]
+  },
+  {
+    "base_name": "midia_banca01",
+    "local": "outdoor",
+    "tipo": "f\u00edsica",
+    "description": "Banca de Jornal",
+    "images": [
+      {
+        "day_image": "midia_banca01_3M.png",
+        "night_image": "midia_banca01_noite_3M.png",
+        "distance": 3
+      },
+      {
+        "day_image": "midia_banca01_15M.png",
+        "night_image": "midia_banca01_noite_15M.png",
+        "distance": 15
+      },
+      {
+        "day_image": "midia_banca01_30M.png",
+        "night_image": "midia_banca01_noite_30M.png",
+        "distance": 30
+      }
+    ]
+  },
+  {
+    "base_name": "midia_banca05_15M.png",
+    "local": "outdoor",
+    "tipo": "f\u00edsica",
+    "description": "Banca de Jornal",
+    "images": [
+      {
+        "day_image": "midia_banca05_3M.png",
+        "night_image": null,
+        "distance": 3
+      },
+      {
+        "day_image": "midia_banca05_15M.png",
+        "night_image": null,
+        "distance": 15
+      },
+      {
+        "day_image": "midia_banca05_30M.png",
+        "night_image": null,
+        "distance": 30
+      }
+    ]
+  },
+  {
+    "base_name": "midia_busdoor01",
+    "local": "outdoor",
+    "tipo": "f\u00edsica",
+    "description": "Busdoor",
+    "images": [
+      {
+        "day_image": "midia_busdoor01_3M.png",
+        "night_image": null,
+        "distance": 3
+      },
+      {
+        "day_image": "midia_busdoor01_15M.png",
+        "night_image": null,
+        "distance": 15
+      },
+      {
+        "day_image": "midia_busdoor01_30M.png",
+        "night_image": null,
+        "distance": 30
+      }
+    ]
+  },
+  {
+    "base_name": "midia_busdoor",
+    "local": "outdoor",
+    "tipo": "f\u00edsica",
+    "description": "Busdoor",
+    "images": [
+      {
+        "day_image": null,
+        "night_image": "midia_busdoor_noite_3M.png",
+        "distance": 3
+      },
+      {
+        "day_image": null,
+        "night_image": "midia_busdoor_noite_15M.png",
+        "distance": 15
+      },
+      {
+        "day_image": null,
+        "night_image": "midia_busdoor_noite_30M.png",
+        "distance": 30
+      }
+    ]
+  },
+  {
+    "base_name": "midia_elevador_tela_vertical",
+    "local": "indoor",
+    "tipo": "f\u00edsica",
+    "description": "Elevador",
+    "images": [
+      {
+        "day_image": "midia_elevador_tela_vertical_3M.png",
+        "night_image": null,
+        "distance": 3
+      },
+      {
+        "day_image": "midia_elevador_tela_vertical_1M.png",
+        "night_image": null,
+        "distance": 15
+      }
+    ]
+  },
+  {
+    "base_name": "midia_empena02",
+    "local": "outdoor",
+    "tipo": "f\u00edsica",
+    "description": "Empena",
+    "images": [
+      {
+        "day_image": "midia_empena02_3M.png",
+        "night_image": "midia_empena02_noite_3M_1.png",
+        "distance": 3
+      },
+      {
+        "day_image": "midia_empena02_15M.png",
+        "night_image": "midia_empena02_noite_15M_1.png",
+        "distance": 15
+      },
+      {
+        "day_image": "midia_empena02_30M.png",
+        "night_image": "midia_empena02_noite_30M_1.png",
+        "distance": 30
+      }
+    ]
+  },
+  {
+    "base_name": "midia_indoor_elevador",
+    "local": "outdoor",
+    "tipo": "f\u00edsica",
+    "description": "Empena",
+    "images": [
+      {
+        "day_image": "midia_indoor_elevador01_1M.png",
+        "night_image": null,
+        "distance": 3
+      },
+      {
+        "day_image": "midia_indoor_elevador01_3M.png",
+        "night_image": null,
+        "distance": 15
+      },
+      {
+        "day_image": "midia_indoor_elevador01_5M.png",
+        "night_image": null,
+        "distance": 30
+      }
+    ]
+  },
+  {
+    "base_name": "midia_indoor_elevador_tela_horizontal",
+    "local": "outdoor",
+    "tipo": "f\u00edsica",
+    "description": "Empena",
+    "images": [
+      {
+        "day_image": "midia_indoor_elevador_tela_horizontal_1M.png",
+        "night_image": null,
+        "distance": 3
+      },
+      {
+        "day_image": "midia_indoor_elevador_tela_horizontal_3M.png",
+        "night_image": null,
+        "distance": 15
+      },
+      {
+        "day_image": "midia_indoor_elevador_tela_horizontal_5M.png",
+        "night_image": null,
+        "distance": 30
+      }
+    ]
+  },
+  {
+    "base_name": "midia_indoor_elevador_tela_vertical",
+    "local": "outdoor",
+    "tipo": "f\u00edsica",
+    "description": "Empena",
+    "images": [
+      {
+        "day_image": "midia_indoor_elevador_tela_vertical_5M.png",
+        "night_image": null,
+        "distance": 3
+      }
+    ]
+  },
+  {
+    "base_name": "midia_outdoor01",
+    "local": "outdoor",
+    "tipo": "f\u00edsica",
+    "description": "Empena",
+    "images": [
+      {
+        "day_image": "midia_outdoor01_3M.png",
+        "night_image": "midia_outdoor01_noite_3M.png",
+        "distance": 3
+      },
+      {
+        "day_image": "midia_outdoor01_15M.png",
+        "night_image": "midia_outdoor01_noite_15M.png",
+        "distance": 15
+      },
+      {
+        "day_image": "midia_outdoor01_30M.png",
+        "night_image": "midia_outdoor01_noite_30M.png",
+        "distance": 30
+      }
+    ]
+  },
+  {
+    "base_name": "midia_outdoor05",
+    "local": "outdoor",
+    "tipo": "f\u00edsica",
+    "description": "Empena",
+    "images": [
+      {
+        "day_image": "midia_outdoor05_3M.png",
+        "night_image": null,
+        "distance": 3
+      },
+      {
+        "day_image": "midia_outdoor05_15M.png",
+        "night_image": null,
+        "distance": 15
+      },
+      {
+        "day_image": "midia_outdoor05_30M.png",
+        "night_image": null,
+        "distance": 30
+      }
+    ]
+  },
+  {
+    "base_name": "midia_painel_digital03",
+    "local": "outdoor",
+    "tipo": "f\u00edsica",
+    "description": "Empena",
+    "images": [
+      {
+        "day_image": "midia_painel_digital03_3M.png",
+        "night_image": null,
+        "distance": 3
+      },
+      {
+        "day_image": "midia_painel_digital03_15M.png",
+        "night_image": null,
+        "distance": 15
+      },
+      {
+        "day_image": "midia_painel_digital03_30M.png",
+        "night_image": null,
+        "distance": 30
+      }
+    ]
+  },
+  {
+    "base_name": "midia_painel_digital04",
+    "local": "outdoor",
+    "tipo": "f\u00edsica",
+    "description": "Empena",
+    "images": [
+      {
+        "day_image": "midia_painel_digital04_3M.png",
+        "night_image": null,
+        "distance": 3
+      },
+      {
+        "day_image": "midia_painel_digital04_15M.png",
+        "night_image": null,
+        "distance": 15
+      },
+      {
+        "day_image": "midia_painel_digital04_30M.png",
+        "night_image": null,
+        "distance": 30
+      }
+    ]
+  },
+  {
+    "base_name": "midia_relogio01",
+    "local": "outdoor",
+    "tipo": "f\u00edsica",
+    "description": "Empena",
+    "images": [
+      {
+        "day_image": "midia_relogio01_3M.png",
+        "night_image": "midia_relogio01_noite_3M.png",
+        "distance": 3
+      },
+      {
+        "day_image": "midia_relogio01_15M.png",
+        "night_image": "midia_relogio01_noite_15M.png",
+        "distance": 15
+      },
+      {
+        "day_image": "midia_relogio01_30M.png",
+        "night_image": "midia_relogio01_noite_30M.png",
+        "distance": 30
+      }
+    ]
+  },
+  {
+    "base_name": "midia_relogio02",
+    "local": "outdoor",
+    "tipo": "f\u00edsica",
+    "description": "Empena",
+    "images": [
+      {
+        "day_image": "midia_relogio02_3M.png",
+        "night_image": null,
+        "distance": 3
+      },
+      {
+        "day_image": "midia_relogio02_15M.png",
+        "night_image": null,
+        "distance": 15
+      },
+      {
+        "day_image": "midia_relogio02_30M.png",
+        "night_image": null,
+        "distance": 30
+      }
+    ]
+  },
+  {
+    "base_name": "midia_videowall",
+    "local": "outdoor",
+    "tipo": "f\u00edsica",
+    "description": "Empena",
+    "images": [
+      {
+        "day_image": "midia_videowall_3M.png",
+        "night_image": null,
+        "distance": 3
+      },
+      {
+        "day_image": "midia_videowall_15M.png",
+        "night_image": null,
+        "distance": 15
+      },
+      {
+        "day_image": "midia_videowall_30M.png",
+        "night_image": null,
+        "distance": 30
+      }
+    ]
+  }
+]

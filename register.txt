@@ -1,0 +1,32 @@
+[
+  {
+    "Email": "vitorpereiras17@outlook.com",
+    "Nome": "VITOR",
+    "Campanha": "BRAHMA SSA",
+    "Agencia": "B180"
+  },
+  {
+    "Email": "vitorpereiras17@outlook.com",
+    "Nome": "VITOR",
+    "Campanha": "BRAHMA SSA",
+    "Agencia": "B180"
+  },
+  {
+    "Email": "vitorpereiras17@outlook.com",
+    "Nome": "vitor",
+    "Campanha": "brahma",
+    "Agencia": "be180"
+  },
+  {
+    "Email": "vitorpereiras17@outlook.com",
+    "Nome": "vitor",
+    "Campanha": "brahma",
+    "Agencia": "be180"
+  },
+  {
+    "Email": "jrbj001@gmail.com",
+    "Nome": "teste",
+    "Campanha": "teste",
+    "Agencia": "teste"
+  }
+]
