@@ -13,6 +13,10 @@ import uuid
 import csv
 import re
 from moviepy.editor import VideoFileClip, ImageClip, CompositeVideoClip
+import ffmpeg
+from aiofiles import open as aio_open
+from typing import AsyncGenerator
+from fastapi.responses import StreamingResponse
 
 
 
@@ -390,72 +394,84 @@ async def get_image(filename: str):
         raise HTTPException(status_code=500, detail="Error retrieving the image")
 
 
+def compress_video(input_path: str, output_path: str) -> None:
+    """Compress a video to reduce its size."""
+    try:
+        (
+            ffmpeg
+            .input(input_path)
+            .output(output_path, vcodec="libx264", crf=23, preset="fast")
+            .run(overwrite_output=True)
+        )
+        logger.info(f"Video compressed and saved at {output_path}")
+    except ffmpeg.Error as e:
+        logger.error(f"Error compressing video: {e}")
+        raise HTTPException(status_code=500, detail="Error compressing video")
+
+
+async def video_stream_generator(file_path: str) -> AsyncGenerator[bytes, None]:
+    """Generate video content in chunks for streaming."""
+    async with aio_open(file_path, mode="rb") as file:
+        while chunk := await file.read(1024 * 1024):  # Read 1MB chunks
+            yield chunk
+
+
 @app.post("/upload-video/")
 async def upload_campaign_video(file: UploadFile = File(...), background_names: str = Form(...)):
     try:
-        # Gera um identificador único
+        # Generate unique ID
         common_id = str(uuid.uuid4())
-
-        # Cria o diretório para campanhas, se não existir
         os.makedirs('app/campaigns', exist_ok=True)
         os.makedirs('app/processed', exist_ok=True)
 
-        # Caminho para salvar o vídeo enviado
+        # Save uploaded video
         campaign_video_path = os.path.join('app', 'campaigns', f"{common_id}_{file.filename}")
+        async with aio_open(campaign_video_path, "wb") as campaign_video:
+            content = await file.read()
+            await campaign_video.write(content)
 
-        # Salva o arquivo do vídeo
-        with open(campaign_video_path, "wb") as campaign_video:
-            campaign_video.write(await file.read())
+        # Compress video
+        compressed_video_path = campaign_video_path.replace(".mp4", "_compressed.mp4")
+        compress_video(campaign_video_path, compressed_video_path)
 
-        background_names_list = background_names.split(",")  # Lista de backgrounds fornecida
+        # Process each background
+        background_names_list = background_names.split(",")
         processed_paths = []
 
-        # Processa cada imagem de background fornecida
         for background_name in background_names_list:
             background_image_path = os.path.join('app', 'images', background_name.strip())
-
             if not os.path.exists(background_image_path):
                 raise HTTPException(status_code=404, detail=f"Background image {background_name} not found")
 
-            # Detecta a maior área branca no background
+            # Detect the largest white rectangle
             x, y, w, h = find_largest_white_rectangle(background_image_path)
 
-            # Carrega o vídeo e o background
-            video_clip = VideoFileClip(campaign_video_path)
+            video_clip = VideoFileClip(compressed_video_path)
             background_clip = ImageClip(background_image_path).set_duration(video_clip.duration)
 
-            # Redimensiona o vídeo para caber no espaço branco exatamente como no endpoint de imagens
             resized_video = video_clip.resize((h, w)).set_position((y, x))
-
-            # Combina o vídeo redimensionado com o background
             final_clip = CompositeVideoClip([background_clip, resized_video])
 
-            # Gera o nome do vídeo processado
             suffix = determine_suffix(background_name)
             processed_video_path = os.path.join('app', 'processed', f"{common_id}_{suffix}.mp4")
-
-            # Salva o vídeo processado
             final_clip.write_videofile(processed_video_path, codec="libx264", fps=24, preset="ultrafast")
             processed_paths.append(processed_video_path)
 
-        logger.info(f"Video {file.filename} uploaded and processed with backgrounds {background_names}")
+        logger.info(f"Video {file.filename} uploaded and processed.")
         return {"filename": file.filename, "processed_paths": processed_paths}
 
     except Exception as e:
         logger.error(f"Error in upload_campaign_video: {e}")
-        raise HTTPException(status_code=500, detail=f"Error uploading the campaign video")
+        raise HTTPException(status_code=500, detail=f"Error processing video")
 
-@app.get("/processed-video/{filename}")
-async def get_processed_video(filename: str):
-    try:
-        file_path = os.path.join('app', 'processed', filename)
-        if not os.path.exists(file_path):
-            raise HTTPException(status_code=404, detail="File not found")
-        return FileResponse(file_path)
-    except Exception as e:
-        logger.error(f"Error in get_processed_video: {e}")
-        raise HTTPException(status_code=500, detail="Error retrieving the video")
 
+@app.get("/stream-video/{filename}")
+async def stream_video(filename: str):
+    """Stream a processed video."""
+    file_path = os.path.join('app', 'processed', filename)
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+    return StreamingResponse(video_stream_generator(file_path), media_type="video/mp4")
 
 
 if __name__ == "__main__":
