@@ -30,3 +30,11 @@
     "Agencia": "teste"
   }
 ]
+[
+  {
+    "Email": "99806141@ambev.com.br",
+    "Nome": "Guilherrme Perez",
+    "Campanha": "Stella Artois Promo Tennis",
+    "Agencia": "SOKO"
+  }
+]

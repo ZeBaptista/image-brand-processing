@@ -17,8 +17,8 @@ import ffmpeg
 from aiofiles import open as aio_open
 from typing import AsyncGenerator
 from fastapi.responses import StreamingResponse
-
-
+import hashlib
+from typing import Dict
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -408,33 +408,56 @@ def compress_video(input_path: str, output_path: str) -> None:
         logger.error(f"Error compressing video: {e}")
         raise HTTPException(status_code=500, detail="Error compressing video")
 
-
 async def video_stream_generator(file_path: str) -> AsyncGenerator[bytes, None]:
-    """Generate video content in chunks for streaming."""
-    async with aio_open(file_path, mode="rb") as file:
-        while chunk := await file.read(1024 * 1024):  # Read 1MB chunks
-            yield chunk
+    """
+    Gera o conteúdo do vídeo em pedaços (chunks) para streaming com carregamento progressivo.
+    """
+    try:
+        async with aio_open(file_path, mode="rb") as file:
+            while chunk := await file.read(1024 * 1024):  # Lê pedaços de 1MB
+                yield chunk
+    except Exception as e:
+        logger.error(f"Error streaming video: {e}")
+        raise HTTPException(status_code=500, detail="Error streaming video")
 
+def generate_file_hash(file_path: str) -> str:
+    """Gera um hash MD5 para o conteúdo de um arquivo."""
+    hasher = hashlib.md5()
+    with open(file_path, "rb") as f:
+        while chunk := f.read(8192):  # Lê o arquivo em blocos de 8 KB
+            hasher.update(chunk)
+    return hasher.hexdigest()
+
+def is_cached(cache_dir: str, file_hash: str) -> tuple[bool, str]:
+    """
+    Verifica se um arquivo com o hash especificado já existe no cache.
+    Retorna um booleano e o caminho do arquivo.
+    """
+    cache_path = os.path.join(cache_dir, f"{file_hash}.mp4")
+    return os.path.exists(cache_path), cache_path
+
+# Cache persistente em memória (ou substitua por um banco de dados)
+video_cache: Dict[str, Dict] = {}
 
 @app.post("/upload-video/")
 async def upload_campaign_video(file: UploadFile = File(...), background_names: str = Form(...)):
     try:
-        # Generate unique ID
+        # Gera um identificador único
         common_id = str(uuid.uuid4())
         os.makedirs('app/campaigns', exist_ok=True)
         os.makedirs('app/processed', exist_ok=True)
 
-        # Save uploaded video
+        # Salva o arquivo do vídeo
         campaign_video_path = os.path.join('app', 'campaigns', f"{common_id}_{file.filename}")
         async with aio_open(campaign_video_path, "wb") as campaign_video:
             content = await file.read()
             await campaign_video.write(content)
 
-        # Compress video
+        # Comprime o vídeo
         compressed_video_path = campaign_video_path.replace(".mp4", "_compressed.mp4")
         compress_video(campaign_video_path, compressed_video_path)
 
-        # Process each background
+        # Processa vídeos com backgrounds
         background_names_list = background_names.split(",")
         processed_paths = []
 
@@ -443,7 +466,7 @@ async def upload_campaign_video(file: UploadFile = File(...), background_names: 
             if not os.path.exists(background_image_path):
                 raise HTTPException(status_code=404, detail=f"Background image {background_name} not found")
 
-            # Detect the largest white rectangle
+            # Detecta maior área branca
             x, y, w, h = find_largest_white_rectangle(background_image_path)
 
             video_clip = VideoFileClip(compressed_video_path)
@@ -457,21 +480,46 @@ async def upload_campaign_video(file: UploadFile = File(...), background_names: 
             final_clip.write_videofile(processed_video_path, codec="libx264", fps=24, preset="ultrafast")
             processed_paths.append(processed_video_path)
 
-        logger.info(f"Video {file.filename} uploaded and processed.")
+        # Cache do vídeo
+        video_cache[common_id] = {
+            "paths": processed_paths,
+            "compressed": compressed_video_path,
+            "size": os.path.getsize(compressed_video_path)
+        }
+
+        logger.info(f"Video {file.filename} uploaded and cached.")
         return {"filename": file.filename, "processed_paths": processed_paths}
 
     except Exception as e:
         logger.error(f"Error in upload_campaign_video: {e}")
-        raise HTTPException(status_code=500, detail=f"Error processing video")
+        raise HTTPException(status_code=500, detail="Error processing video")
 
+@app.get("/stream-video/{common_id}/{filename}")
+async def stream_video(common_id: str, filename: str):
+    """
+    Faz o streaming progressivo de um vídeo cacheado.
+    """
+    video_info = video_cache.get(common_id)
+    if not video_info:
+        raise HTTPException(status_code=404, detail="Video not found in cache")
 
-@app.get("/stream-video/{filename}")
-async def stream_video(filename: str):
-    """Stream a processed video."""
-    file_path = os.path.join('app', 'processed', filename)
-    if not os.path.exists(file_path):
+    # Verifica o arquivo
+    file_path = next((path for path in video_info["paths"] if filename in path), None)
+    if not file_path or not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found")
-    return StreamingResponse(video_stream_generator(file_path), media_type="video/mp4")
+
+    file_stats = os.stat(file_path)
+    headers = {
+        "Content-Type": "video/mp4",
+        "Content-Length": str(file_stats.st_size),
+        "Accept-Ranges": "bytes"
+    }
+
+    return StreamingResponse(
+        video_stream_generator(file_path),
+        headers=headers,
+        media_type="video/mp4"
+    )
 
 
 if __name__ == "__main__":
