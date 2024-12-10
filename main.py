@@ -1,6 +1,6 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Form
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse  # StreamingResponse movido para aqui
 import logging
 import os
 from PIL import Image, ImageDraw, ImageOps
@@ -15,12 +15,10 @@ import re
 from moviepy.editor import VideoFileClip, ImageClip, CompositeVideoClip
 import ffmpeg
 from aiofiles import open as aio_open
-from typing import AsyncGenerator
-from fastapi.responses import StreamingResponse
+from typing import AsyncGenerator, List, Dict
 import hashlib
-from typing import Dict
-from time import sleep
-
+from concurrent.futures import ThreadPoolExecutor
+import asyncio
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -399,53 +397,110 @@ async def get_image(filename: str):
         raise HTTPException(status_code=500, detail="Error retrieving the image")
 
 
-def compress_video(input_path: str, output_path: str) -> None:
-    """Compress a video to reduce its size."""
-    try:
-        (
-            ffmpeg
-            .input(input_path)
-            .output(output_path, vcodec="libx264", crf=23, preset="fast")
-            .run(overwrite_output=True)
-        )
-        logger.info(f"Video compressed and saved at {output_path}")
-    except ffmpeg.Error as e:
-        logger.error(f"Error compressing video: {e}")
-        raise HTTPException(status_code=500, detail="Error compressing video")
+class VideoOptimizer:
+    @staticmethod
+    def compress_video(input_path: str, output_path: str, max_width: int = 1280) -> None:
+        """Enhanced video compression with resolution optimization."""
+        try:
+            # Get video metadata
+            probe = ffmpeg.probe(input_path)
+            video_info = next(s for s in probe['streams'] if s['codec_type'] == 'video')
 
-async def video_stream_generator(file_path: str) -> AsyncGenerator[bytes, None]:
-    """
-    Gera o conteúdo do vídeo em pedaços (chunks) para streaming com carregamento progressivo.
-    """
-    try:
-        async with aio_open(file_path, mode="rb") as file:
-            while chunk := await file.read(1024 * 1024):  # Lê pedaços de 1 MB
-                yield chunk
-    except Exception as e:
-        logger.error(f"Error streaming video: {e}")
-        raise HTTPException(status_code=500, detail="Error reading video file")
+            # Determine scaling
+            width = int(video_info['width'])
+            height = int(video_info['height'])
 
-def generate_file_hash(file_path: str) -> str:
-    """Gera um hash MD5 para o conteúdo de um arquivo."""
-    hasher = hashlib.md5()
-    with open(file_path, "rb") as f:
-        while chunk := f.read(8192):  # Lê o arquivo em blocos de 8 KB
-            hasher.update(chunk)
-    return hasher.hexdigest()
+            if width > max_width:
+                scale_factor = max_width / width
+                new_width = max_width
+                new_height = int(height * scale_factor)
 
-def is_cached(cache_dir: str, file_hash: str) -> tuple[bool, str]:
-    """
-    Verifica se um arquivo com o hash especificado já existe no cache.
-    Retorna um booleano e o caminho do arquivo.
-    """
-    cache_path = os.path.join(cache_dir, f"{file_hash}.mp4")
-    return os.path.exists(cache_path), cache_path
+                # Compress with scaling
+                (
+                    ffmpeg
+                    .input(input_path)
+                    .filter('scale', new_width, new_height)
+                    .output(output_path,
+                            vcodec="libx264",
+                            crf=28,  # Lower CRF for better compression
+                            preset="medium",
+                            acodec="aac",
+                            strict="-2"
+                            )
+                    .run(overwrite_output=True)
+                )
+            else:
+                # Standard compression without scaling
+                (
+                    ffmpeg
+                    .input(input_path)
+                    .output(output_path,
+                            vcodec="libx264",
+                            crf=28,
+                            preset="medium",
+                            acodec="aac",
+                            strict="-2"
+                            )
+                    .run(overwrite_output=True)
+                )
 
-# Cache persistente em memória (ou substitua por um banco de dados)
-video_cache: Dict[str, Dict] = {}
+            logger.info(f"Video compressed and optimized: {output_path}")
+        except ffmpeg.Error as e:
+            logger.error(f"Video compression error: {e}")
+            raise HTTPException(status_code=500, detail=f"Video compression failed: {e}")
 
+    @staticmethod
+    def process_video_backgrounds(
+            compressed_video_path: str,
+            background_image_path: str,
+            common_id: str,
+            suffix: str
+    ) -> str:
+        """Optimized video processing with background overlay."""
+        try:
+            # Load video and background
+            video_clip = VideoFileClip(compressed_video_path)
+
+            # Find largest white rectangle (reuse existing function)
+            x, y, w, h = find_largest_white_rectangle(background_image_path)
+
+            # Resize video to fit white rectangle
+            resized_video = video_clip.resize((h, w))
+
+            # Create background clip
+            background_clip = ImageClip(background_image_path).set_duration(video_clip.duration)
+
+            # Composite video
+            final_clip = CompositeVideoClip([
+                background_clip,
+                resized_video.set_position((y, x))
+            ])
+
+            # Output path
+            processed_video_path = os.path.join('app', 'processed', f"{common_id}_{suffix}.mp4")
+
+            # Write video with optimized settings
+            final_clip.write_videofile(
+                processed_video_path,
+                codec="libx264",
+                fps=24,
+                preset="ultrafast",
+                threads=4  # Utilize multiple threads
+            )
+
+            return processed_video_path
+        except Exception as e:
+            logger.error(f"Video background processing error: {e}")
+            raise HTTPException(status_code=500, detail=f"Video processing failed: {e}")
+
+
+# Modify the existing upload_campaign_video function
 @app.post("/upload-video/")
-async def upload_campaign_video(file: UploadFile = File(...), background_names: str = Form(...)):
+async def upload_campaign_video(
+        background_tasks: BackgroundTasks,
+        file: UploadFile = File(...),
+        background_names: str = Form(...)
+):
     try:
         # Gera um identificador único
         common_id = str(uuid.uuid4())
@@ -453,86 +508,173 @@ async def upload_campaign_video(file: UploadFile = File(...), background_names: 
         os.makedirs('app/processed', exist_ok=True)
 
         # Adiciona o status de processamento
-        video_processing_status[common_id] = {"status": "processing", "message": "Video upload and processing started"}
+        video_processing_status[common_id] = {
+            "status": "processing",
+            "message": "Video upload and processing started"
+        }
 
-        # Salva o arquivo do vídeo
+        # Salva o arquivo do vídeo de forma eficiente
         campaign_video_path = os.path.join('app', 'campaigns', f"{common_id}_{file.filename}")
         async with aio_open(campaign_video_path, "wb") as campaign_video:
-            content = await file.read()
-            await campaign_video.write(content)
+            while chunk := await file.read(8192):  # Leitura em chunks menores
+                await campaign_video.write(chunk)
 
-        # Comprime o vídeo
+        # Comprime o vídeo com otimização
         compressed_video_path = campaign_video_path.replace(".mp4", "_compressed.mp4")
-        compress_video(campaign_video_path, compressed_video_path)
+        VideoOptimizer.compress_video(campaign_video_path, compressed_video_path)
 
-        # Processa vídeos com backgrounds
+        # Processamento em paralelo dos backgrounds
         background_names_list = background_names.split(",")
         processed_paths = []
 
-        for background_name in background_names_list:
-            background_image_path = os.path.join('app', 'images', background_name.strip())
-            if not os.path.exists(background_image_path):
-                raise HTTPException(status_code=404, detail=f"Background image {background_name} not found")
+        # Usa ThreadPoolExecutor para processamento paralelo
+        with ThreadPoolExecutor(max_workers=min(4, len(background_names_list))) as executor:
+            def process_background(background_name):
+                background_image_path = os.path.join('app', 'images', background_name.strip())
+                if not os.path.exists(background_image_path):
+                    raise HTTPException(status_code=404, detail=f"Background image {background_name} not found")
 
-            # Detecta maior área branca
-            x, y, w, h = find_largest_white_rectangle(background_image_path)
+                suffix = determine_suffix(background_name)
+                return VideoOptimizer.process_video_backgrounds(
+                    compressed_video_path,
+                    background_image_path,
+                    common_id,
+                    suffix
+                )
 
-            video_clip = VideoFileClip(compressed_video_path)
-            background_clip = ImageClip(background_image_path).set_duration(video_clip.duration)
-
-            resized_video = video_clip.resize((h, w)).set_position((y, x))
-            final_clip = CompositeVideoClip([background_clip, resized_video])
-
-            suffix = determine_suffix(background_name)
-            processed_video_path = os.path.join('app', 'processed', f"{common_id}_{suffix}.mp4")
-            final_clip.write_videofile(processed_video_path, codec="libx264", fps=24, preset="ultrafast")
-            processed_paths.append(processed_video_path)
+            processed_paths = list(executor.map(process_background, background_names_list))
 
         # Atualiza o status como finalizado
-        video_processing_status[common_id] = {"status": "completed", "paths": processed_paths}
+        video_processing_status[common_id] = {
+            "status": "completed",
+            "paths": processed_paths
+        }
 
         logger.info(f"Video {file.filename} uploaded and processed.")
-        return {"filename": file.filename, "processed_paths": processed_paths}
+        return {
+            "filename": file.filename,
+            "processed_paths": processed_paths
+        }
 
     except Exception as e:
         # Atualiza o status como erro
-        video_processing_status[common_id] = {"status": "error", "message": str(e)}
+        video_processing_status[common_id] = {
+            "status": "error",
+            "message": str(e)
+        }
         logger.error(f"Error in upload_campaign_video: {e}")
         raise HTTPException(status_code=500, detail="Error processing video")
 
-@app.get("/status/{common_id}")
-async def get_video_status(common_id: str):
+# Additional optimized video streaming function
+async def video_stream_generator(file_path: str, chunk_size: int = 1024 * 1024) -> AsyncGenerator[bytes, None]:
     """
-    Retorna o status do processamento de vídeo.
+    Optimized video streaming generator with configurable chunk size.
     """
-    status = video_processing_status.get(common_id)
-    if not status:
-        raise HTTPException(status_code=404, detail="Status not found")
-    return status
+    try:
+        async with aio_open(file_path, mode="rb") as file:
+            while chunk := await file.read(chunk_size):
+                yield chunk
+    except Exception as e:
+        logger.error(f"Error streaming video: {e}")
+        raise HTTPException(status_code=500, detail="Error reading video file")
 
 
-@app.get("/stream-video/{common_id}/{filename}")
-async def stream_video(common_id: str, filename: str):
+# Update existing stream video endpoint
+@app.get("/stream-video/{filename}")
+async def stream_video(filename: str):
     """
-    Faz o streaming progressivo de um vídeo diretamente do diretório `app/processed` ou do cache.
+    Streaming de vídeo com progresso e melhor feedback
     """
-    # Verifica se o vídeo está no cache
-    video_info = video_cache.get(common_id)
-    if video_info:
-        file_path = next((path for path in video_info["paths"] if filename in path), None)
-    else:
-        # Busca diretamente no diretório `app/processed` se não estiver no cache
+    try:
         file_path = os.path.join("app", "processed", filename)
+        if not os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail="Video not found")
 
-    if not file_path or not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="Video not found")
+        file_size = os.path.getsize(file_path)
+        file_id = filename.replace('.mp4', '')
 
-    logger.info(f"Streaming video: {file_path}")
+        # Inicializa o status do streaming
+        video_processing_status[file_id] = {
+            "status": "processing",
+            "message": "Starting video stream",
+            "progress": 0,
+            "total_size": file_size
+        }
 
-    return StreamingResponse(
-        video_stream_generator(file_path),
-        media_type="video/mp4",
-    )
+        async def generate_with_progress():
+            try:
+                bytes_sent = 0
+                async with aio_open(file_path, mode="rb") as file:
+                    while chunk := await file.read(8192):
+                        bytes_sent += len(chunk)
+                        progress = int((bytes_sent / file_size) * 100)
+
+                        # Atualiza o status com a porcentagem
+                        video_processing_status[file_id].update({
+                            "status": "streaming",
+                            "message": f"Streaming video: {progress}% complete",
+                            "progress": progress
+                        })
+
+                        yield chunk
+
+                # Marca como completo quando terminar
+                video_processing_status[file_id].update({
+                    "status": "completed",
+                    "message": "Video stream completed",
+                    "progress": 100
+                })
+
+            except Exception as e:
+                video_processing_status[file_id].update({
+                    "status": "error",
+                    "message": f"Error during streaming: {str(e)}",
+                    "error": str(e)
+                })
+                raise
+
+        # Headers aprimorados para melhor controle de cache e streaming
+        headers = {
+            "Accept-Ranges": "bytes",
+            "Content-Type": "video/mp4",
+            "Content-Disposition": f"attachment; filename={filename}",
+            "Content-Length": str(file_size),
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no"  # Desativa buffering do proxy
+        }
+
+        return StreamingResponse(
+            generate_with_progress(),
+            headers=headers,
+            media_type="video/mp4"
+        )
+
+    except Exception as e:
+        logger.error(f"Error streaming video: {e}")
+        if 'file_id' in locals():
+            video_processing_status[file_id].update({
+                "status": "error",
+                "message": f"Error: {str(e)}",
+                "error": str(e)
+            })
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Endpoint de status mais informativo
+@app.get("/stream-status/{filename}")
+async def get_stream_status(filename: str):
+    """
+    Retorna status detalhado do streaming
+    """
+    file_id = filename.replace('.mp4', '')
+    if file_id not in video_processing_status:
+        return {
+            "status": "not_started",
+            "message": "Stream not started",
+            "progress": 0
+        }
+
+    return video_processing_status[file_id]
 
 if __name__ == "__main__":
     import uvicorn
