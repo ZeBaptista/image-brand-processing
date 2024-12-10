@@ -19,6 +19,8 @@ from typing import AsyncGenerator
 from fastapi.responses import StreamingResponse
 import hashlib
 from typing import Dict
+from time import sleep
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -26,6 +28,9 @@ logger = logging.getLogger(__name__)
 
 # Load environment variables from .env file
 load_dotenv()
+
+# Adicionar um dicionário de status de processamento
+video_processing_status: Dict[str, Dict] = {}
 
 app = FastAPI()
 
@@ -414,11 +419,11 @@ async def video_stream_generator(file_path: str) -> AsyncGenerator[bytes, None]:
     """
     try:
         async with aio_open(file_path, mode="rb") as file:
-            while chunk := await file.read(1024 * 1024):  # Lê pedaços de 1MB
+            while chunk := await file.read(1024 * 1024):  # Lê pedaços de 1 MB
                 yield chunk
     except Exception as e:
         logger.error(f"Error streaming video: {e}")
-        raise HTTPException(status_code=500, detail="Error streaming video")
+        raise HTTPException(status_code=500, detail="Error reading video file")
 
 def generate_file_hash(file_path: str) -> str:
     """Gera um hash MD5 para o conteúdo de um arquivo."""
@@ -446,6 +451,9 @@ async def upload_campaign_video(file: UploadFile = File(...), background_names: 
         common_id = str(uuid.uuid4())
         os.makedirs('app/campaigns', exist_ok=True)
         os.makedirs('app/processed', exist_ok=True)
+
+        # Adiciona o status de processamento
+        video_processing_status[common_id] = {"status": "processing", "message": "Video upload and processing started"}
 
         # Salva o arquivo do vídeo
         campaign_video_path = os.path.join('app', 'campaigns', f"{common_id}_{file.filename}")
@@ -480,47 +488,51 @@ async def upload_campaign_video(file: UploadFile = File(...), background_names: 
             final_clip.write_videofile(processed_video_path, codec="libx264", fps=24, preset="ultrafast")
             processed_paths.append(processed_video_path)
 
-        # Cache do vídeo
-        video_cache[common_id] = {
-            "paths": processed_paths,
-            "compressed": compressed_video_path,
-            "size": os.path.getsize(compressed_video_path)
-        }
+        # Atualiza o status como finalizado
+        video_processing_status[common_id] = {"status": "completed", "paths": processed_paths}
 
-        logger.info(f"Video {file.filename} uploaded and cached.")
+        logger.info(f"Video {file.filename} uploaded and processed.")
         return {"filename": file.filename, "processed_paths": processed_paths}
 
     except Exception as e:
+        # Atualiza o status como erro
+        video_processing_status[common_id] = {"status": "error", "message": str(e)}
         logger.error(f"Error in upload_campaign_video: {e}")
         raise HTTPException(status_code=500, detail="Error processing video")
+
+@app.get("/status/{common_id}")
+async def get_video_status(common_id: str):
+    """
+    Retorna o status do processamento de vídeo.
+    """
+    status = video_processing_status.get(common_id)
+    if not status:
+        raise HTTPException(status_code=404, detail="Status not found")
+    return status
+
 
 @app.get("/stream-video/{common_id}/{filename}")
 async def stream_video(common_id: str, filename: str):
     """
-    Faz o streaming progressivo de um vídeo cacheado.
+    Faz o streaming progressivo de um vídeo diretamente do diretório `app/processed` ou do cache.
     """
+    # Verifica se o vídeo está no cache
     video_info = video_cache.get(common_id)
-    if not video_info:
-        raise HTTPException(status_code=404, detail="Video not found in cache")
+    if video_info:
+        file_path = next((path for path in video_info["paths"] if filename in path), None)
+    else:
+        # Busca diretamente no diretório `app/processed` se não estiver no cache
+        file_path = os.path.join("app", "processed", filename)
 
-    # Verifica o arquivo
-    file_path = next((path for path in video_info["paths"] if filename in path), None)
     if not file_path or not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="File not found")
+        raise HTTPException(status_code=404, detail="Video not found")
 
-    file_stats = os.stat(file_path)
-    headers = {
-        "Content-Type": "video/mp4",
-        "Content-Length": str(file_stats.st_size),
-        "Accept-Ranges": "bytes"
-    }
+    logger.info(f"Streaming video: {file_path}")
 
     return StreamingResponse(
         video_stream_generator(file_path),
-        headers=headers,
-        media_type="video/mp4"
+        media_type="video/mp4",
     )
-
 
 if __name__ == "__main__":
     import uvicorn
